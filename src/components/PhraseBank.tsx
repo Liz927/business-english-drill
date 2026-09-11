@@ -1,0 +1,11 @@
+import { useState } from 'react';
+import type { SavedPhrase } from '../types';
+import Icon from './Icon';
+export default function PhraseBank({ phrases, onChange }: { phrases: SavedPhrase[]; onChange: (phrases: SavedPhrase[]) => void }) {
+  const [search, setSearch] = useState(''); const [category, setCategory] = useState('All categories');
+  const filtered = phrases.filter(p => (category === 'All categories' || p.category === category) && `${p.phrase} ${p.example} ${p.note}`.toLowerCase().includes(search.toLowerCase()));
+  return <><p className="eyebrow">LANGUAGE YOU CAN REACH FOR</p><h1>Phrase Bank</h1><p className="intro">Useful words, ready for your next conversation.</p><div className="filters"><label><span className="sr-only">Search phrases</span><input type="search" placeholder="Search phrases, examples, notes…" value={search} onChange={e => setSearch(e.target.value)}/></label><label><span className="sr-only">Filter by category</span><select value={category} onChange={e => setCategory(e.target.value)}><option>All categories</option>{[...new Set(phrases.map(p => p.category))].sort().map(c => <option key={c}>{c}</option>)}</select></label></div>
+    {filtered.length === 0 ? <div className="empty"><Icon name="phrases" size={32}/><h2>{phrases.length ? 'No matching phrases' : 'Make the language yours.'}</h2><p>{phrases.length ? 'Try a different search or category.' : 'Save a useful phrase when comparing your response in a drill. Add a note about where you might use it.'}</p></div>
+      : <div className="phrase-list">{filtered.map(p => <article className="saved-phrase" key={p.id}><div className="section-top"><span className="tag">{p.category}</span><span className="muted saved-date">Saved {new Date(p.savedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div><h2>{p.phrase}</h2><p className="phrase-example">{p.example}</p><label className="note-label" htmlFor={`note-${p.id}`}>Personal note</label><textarea id={`note-${p.id}`} rows={2} maxLength={1500} placeholder="Where could you use this?" value={p.note} onChange={e => onChange(phrases.map(item => item.id === p.id ? { ...item, note: e.target.value } : item))}/><button className="text-button remove" onClick={() => onChange(phrases.filter(item => item.id !== p.id))}>Remove phrase</button></article>)}</div>}
+  </>;
+}
