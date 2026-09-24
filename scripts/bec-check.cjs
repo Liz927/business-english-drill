@@ -1,0 +1,121 @@
+// BEC reading acceptance; isolated synthetic data, never the user's browser profile.
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { expect } = require((process.env.PLAYWRIGHT_MODULE || 'playwright') + '/test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const base = process.env.DRILL_TEST_URL || 'http://localhost:4173';
+const key = 'business-english-drill:v1';
+(async () => {
+  const { becPacks } = await import('../src/data/bec.ts');
+  const browser = await chromium.launch({channel:'msedge',headless:true});
+  const context = await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Shanghai'});
+  const page = await context.newPage(); const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  const state=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+  const home=()=>page.getByRole('button',{name:'Business English Drill home',exact:true}).click();
+  const open=pack=>page.getByRole('button',{name:`Open ${pack.title}`,exact:true}).click();
+  const stage=name=>page.getByRole('navigation',{name:'Learning stages'}).getByRole('button',{name:new RegExp(name)}).click();
+  const nav=name=>page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name,exact:true}).click();
+  const noOverflow=async label=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label);
+  try {
+    fs.mkdirSync('test-results',{recursive:true});
+    await page.goto(base); await page.waitForLoadState('networkidle');
+    await expect(page.locator('.library-card')).toHaveCount(7);
+    await expect(page.getByRole('heading',{level:1})).toHaveText(becPacks[0].title);
+    await page.getByLabel('Explore a topic').selectOption('People & leadership');
+    await expect(page.locator('.library-card')).toHaveCount(1);
+    await page.getByLabel('Explore a topic').selectOption('All topics');
+    await page.screenshot({path:'test-results/bec-home-mobile.png',fullPage:true});
+    for (let i=0;i<becPacks.length;i++) {
+      const pack=becPacks[i]; await open(pack);
+      await expect(page.locator('.reading-body>p')).toHaveCount(pack.reading.paragraphs.length);
+      assert.equal(await page.locator('textarea').count(),0);
+      await expect(page.locator('.reading-kicker')).toContainText('Original BEC-oriented text');
+      if(i===0) {
+        await expect(page.getByRole('table')).toContainText('7.5%');
+        await page.getByText('Business concepts · understand the situation',{exact:true}).click();
+        await expect(page.locator('dl')).toContainText('Operating profit as a percentage of revenue');
+        await page.locator('.exposure-card').first().getByRole('button',{name:'Almost Mine I can use it with support'}).click();
+        await page.screenshot({path:'test-results/bec-finance-mobile.png',fullPage:true});
+      }
+      await stage('Notice'); await page.locator('.notice-question summary').first().click();
+      await expect(page.locator('.notice-question').first().locator('p')).toBeVisible();
+      await stage('Choose'); await page.getByRole('radio').nth(pack.choice.preferred).check();
+      await page.getByRole('button',{name:'Explore the choices'}).click();
+      await expect(page.locator('.answer')).toContainText('A GOOD FIT');
+      await stage('Imitate'); await page.getByLabel('Your version · 1',{exact:true}).fill(`Draft unique to ${pack.id}`);
+      await page.getByText('Revisit the full text',{exact:true}).click();
+      await expect(page.locator('.return-reading .reading-body')).toBeVisible();
+      await stage('Recall'); await expect(page.locator('.pattern').first()).toContainText(pack.recallModel);
+      await page.getByLabel('Support level').selectOption('1');
+      await expect(page.locator('.pattern').first()).toHaveText(pack.recallHints[0]);
+      await stage('Produce'); await page.getByText('Give me a hint',{exact:true}).click();
+      await expect(page.locator('details').nth(1)).toContainText(pack.produceHint);
+      await page.getByLabel('Your response',{exact:true}).fill(`Output for ${pack.id}`);
+      await page.getByRole('button',{name:'Finish for today',exact:true}).first().click();
+      await page.getByRole('button',{name:'Continue exploring',exact:true}).click();
+      await expect(page.getByLabel('Your response',{exact:true})).toHaveValue(`Output for ${pack.id}`);
+      await home();
+    }
+    assert.equal((await state()).exposureHistory.length,6);
+    await page.reload(); await open(becPacks[0]); await stage('Imitate');
+    await expect(page.getByLabel('Your version · 1',{exact:true})).toHaveValue('Draft unique to bec-performance-1');
+    await home(); await nav('Phrase Bank');
+    await expect(page.locator('.phrase-source')).toContainText('Quarterly performance');
+    await page.getByLabel('Filter by business topic').selectOption('Finance & business performance');
+    await expect(page.locator('.saved-phrase')).toHaveCount(1);
+    await nav('Progress'); await expect(page.locator('.topic-coverage>div')).toHaveCount(6);
+    await expect(page.locator('.topic-coverage')).not.toContainText('Not yet explored');
+    await home(); await page.getByRole('button',{name:'BEC sources & my texts'}).click();
+    await expect(page.getByRole('link',{name:'Open official BEC materials'})).toHaveAttribute('href',/cambridgeenglish\.cn/);
+    await page.getByLabel('Reading title',{exact:true}).fill('Synthetic business reading');
+    await page.getByLabel('Book / source / page reference').fill('Personal test source · page 12');
+    await page.getByRole('combobox',{name:'Business topic',exact:true}).selectOption('People & leadership');
+    const text='The training programme needs a clear purpose.\nA pilot would help us evaluate its usefulness.\n<script>window.untrustedExecuted=true</script>';
+    await page.getByLabel('Original text (optional)').fill(text);
+    await page.getByRole('button',{name:'Save reading material'}).click();
+    await expect(page.locator('.personal-reading-body')).toContainText(text.split('\n')[0]);
+    assert.equal(await page.evaluate(()=>window.untrustedExecuted),undefined);
+    await page.getByLabel('My observations').fill('The writer moves from purpose to a testable recommendation.');
+    await page.getByRole('button',{name:'Record this reading visit'}).click();
+    await page.getByLabel('Expression from this source').fill('A pilot would help us evaluate its usefulness.');
+    await page.getByLabel('Communication function',{exact:true}).fill('Recommend');
+    await page.getByLabel('Original context',{exact:true}).fill('The training programme needs a clear purpose.');
+    await page.getByRole('button',{name:'Save to Phrase Bank',exact:true}).click();
+    await page.reload(); await page.getByRole('button',{name:'BEC sources & my texts'}).click();
+    await page.getByRole('combobox',{name:'My saved materials',exact:true}).selectOption({label:'Synthetic business reading'});
+    await expect(page.getByLabel('My observations')).toHaveValue(/testable recommendation/);
+    await expect(page.locator('.personal-reading')).toContainText('Last read:');
+    await page.screenshot({path:'test-results/bec-personal-source-mobile.png',fullPage:true});
+    const imported=(await state()).phrases.find(p=>p.category==='Recommend');
+    assert.equal(imported.sourceTitle,'Synthetic business reading · Personal test source · page 12');
+    assert.equal(imported.learningState,undefined);
+    await nav('Phrase Bank'); await page.getByLabel('Filter by business topic').selectOption('People & leadership');
+    await expect(page.locator('.saved-phrase')).toHaveCount(1);
+    await expect(page.locator('.saved-phrase')).toContainText('Personal test source');
+    console.log('PASS: six complete reading flows, independent drafts, topic coverage, source attribution, original material import, reading log and contextual phrase capture');
+    await nav('Settings'); await page.getByRole('combobox',{name:'Appearance',exact:true}).selectOption('dark');
+    for(const width of [320,1280]) {
+      await page.setViewportSize({width,height:900}); await home(); await noOverflow(`home ${width}`);
+      await open(becPacks[0]); await stage('Absorb'); await noOverflow(`finance ${width}`);
+      if(width===1280) await page.screenshot({path:'test-results/bec-desktop-dark.png',fullPage:true});
+      await home(); await page.getByRole('button',{name:'BEC sources & my texts'}).click();
+      await page.getByRole('combobox',{name:'My saved materials',exact:true}).selectOption({label:'Synthetic business reading'}); await noOverflow(`sources ${width}`);
+    }
+    await page.setViewportSize({width:320,height:720}); await page.addStyleTag({content:'html{font-size:200%}'});
+    await noOverflow('sources large text'); await home(); await noOverflow('home large text');
+    await open(becPacks[0]); await stage('Absorb'); await noOverflow('finance large text');
+    await page.evaluate(async()=>{await navigator.serviceWorker.ready}); await page.reload(); await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+    await context.setOffline(true); await page.reload(); await open(becPacks[1]); await stage('Absorb');
+    await expect(page.locator('.reading-body')).toContainText('retention bonus');
+    await home(); await page.getByRole('button',{name:'BEC sources & my texts'}).click();
+    await page.getByRole('combobox',{name:'My saved materials',exact:true}).selectOption({label:'Synthetic business reading'});
+    await page.getByLabel('My observations').fill('Notes updated offline.');
+    await page.reload(); await page.getByRole('button',{name:'BEC sources & my texts'}).click();
+    await page.getByRole('combobox',{name:'My saved materials',exact:true}).selectOption({label:'Synthetic business reading'});
+    await expect(page.getByLabel('My observations')).toHaveValue('Notes updated offline.');
+    assert.deepEqual(errors,[]);
+    console.log('PASS: 320/390/1280 layouts, dark mode, 200% text, offline reading and imported-note persistence');
+  } catch(error) { await page.screenshot({path:'test-results/bec-failure.png',fullPage:true});console.error(await page.locator('main').ariaSnapshot());throw error; }
+  finally { await browser.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1});

@@ -1,6 +1,6 @@
 # Business English Drill
 
-A small, English-first PWA for active professional English. Five daily questions, realistic project conversations, and a clear stopping point: **“Good. Go to work.”**
+An English-first, input-first PWA for professional communication and BEC Higher foundations. Start with natural expressions, notice the patterns, and move into supported practice at your own pace. Reading and noticing are enough to record a learning visit.
 
 ## Use on your phone
 
@@ -31,7 +31,26 @@ npm.cmd run preview
 
 The production preview normally runs at http://localhost:4173. **Service-worker offline caching runs in the production build, not the development server.** Open the production preview online first, allow the worker to install, then reload once before testing offline navigation.
 
-## What is included
+## BEC-oriented reading and authentic-source workspace
+
+Today recommends an unfinished BEC reading when one exists; otherwise it suggests an unread or least recently visited topic. The shelf allows free selection and topic filtering. The original Timeline pack remains available with the same ID and saved history.
+
+Six **original BEC-oriented learning texts** cover finance/business performance, people/leadership, marketing/customer relations, service/negotiation, operations/procurement, and strategy/change. Formats include a report with a data table, business article, proposal, email, meeting transcript and briefing. These are authored learning materials, not Cambridge extracts, official questions or a complete syllabus. The transcript is reading material, not a listening test.
+
+- **Absorb** starts with a complete 150+ word text and the business situation. Optional concept definitions and a whole-text structure guide support understanding before phrase study.
+- **Notice → Choose → Imitate** connects discourse, inference and paraphrase with four useful expressions and four supported transformations. Expressions are drawn from the displayed text. Every imitation task keeps its model visible.
+- **Recall / Produce remain optional**, with pack-specific hints, examples and self-checks. The whole source text can be reopened from any later stage. There is no timer or automatic writing grade.
+- **Finish for today** records a learning visit even after input alone. Stages visited are not treated as mastered skills. Revisiting the same pack on the same day updates the visit; switching packs retains separate drafts. On a new date, a new visit ID is created while previous draft answers are retained.
+- Familiar / Almost Mine / Mine remain explicit self-ratings with 3 / 1 / 7 day review intervals. Saving does not mark an expression mastered. Phrase Bank now retains a source title, topic and context, supports topic filtering, and keeps previous notes and states.
+- Progress shows topic coverage and learning visits separately from output performance. It does not estimate an exam pass probability.
+
+**Use my BEC materials** opens the source workspace directly from Today. The official Cambridge resource page provides original sample materials externally. These links need internet and are not cached by this app. Users can store a source/page reference, paste an excerpt from their own study material, save observations, record a reading visit, and select or enter an expression with its original context for Phrase Bank. Imported text is rendered as plain text, remains local, and is included in JSON export. The app does not fabricate an answer key or generate analysis for an imported text.
+
+The six built-in texts, imported text, notes and drafts are available offline after the app is cached. Full exam simulations, audio playback, automatic assessment and automatic book/PDF extraction are not included.
+
+## Original output practice retained
+
+Open **Ready to write? Original output practice** on Today, or enter from Produce.
 
 - 40 authored exercises: one Scenario → English, Tone Choice, Micro Output, and Rewrite in each of 10 modules.
 - Daily sets of 5 distinct questions cover all four types, favor less recently practiced items, and vary categories. A session keeps its selected IDs once started. One completed daily session per local calendar date.
@@ -49,6 +68,8 @@ The production preview normally runs at http://localhost:4173. **Service-worker 
 React + TypeScript + Vite + `vite-plugin-pwa`, plain CSS, and localStorage. No backend, accounts, analytics, cloud database, paid APIs, or remote font dependencies. All scenarios use fictional, generic workplace entities.
 
 Data is stored under **`business-english-drill:v1`**, scoped to the browser profile and origin. Different ports, domains, devices, and browser profiles have separate data. Clearing browser/site data or uninstalling a PWA may remove it. Avoid entering confidential project details in practice responses. Export data in Settings to retain a JSON record; this MVP does not include an import/restore interface or cross-device sync.
+
+The input-first extension keeps the same storage key and version, adding optional exposure-session/history, per-pack draft maps, personal readings and phrase metadata fields. The previous single exposure-session draft is retained when moving between packs. Older v1 backups load additively: attempts, output review schedules, completed dates, draft sessions, saved phrase IDs/notes, theme, and hint preferences are retained. No existing phrase is automatically assigned a mastery state. The loader validates new fields too; it does not replace malformed data with an empty saved copy.
 
 If stored data is malformed, the app preserves the existing copy and blocks overwriting it, with a visible recovery message. Export the stored copy before resetting. If storage becomes unavailable or full, a visible warning asks you to keep the page open and export current in-memory data. Reset requires confirmation.
 
@@ -87,18 +108,29 @@ src/
   App.tsx                  Navigation, local state, session actions, settings
   types.ts                 Content, attempts, reviews, and persistence schemas
   data/exercises.ts        Editable 40-question content bank
+  data/exposure.ts         Original Challenge / Timeline exposure pack
+  data/bec.ts              Six authored readings, supported tasks, official references
   components/
     Drill.tsx              Four exercise flows, reveal, save, self-rating
-    PhraseBank.tsx         Search, filter, personal notes
+    Exposure.tsx           Six-stage pack with optional output and persistent drafts
+    ReadingText.tsx        Continuous reading, data tables and concept support
+    Library.tsx            Topic shelf and resumable reading entries
+    Sources.tsx            Official-source links and personal reading workspace
+    LearningStates.tsx     Explicit Familiar / Almost Mine / Mine controls
+    PhraseReview.tsx       Input-first review with transferable examples
+    PhraseBank.tsx         Search, function/state filters, notes, personal expressions
     Progress.tsx           Useful, non-gamified practice metrics
     Icon.tsx               Small inline SVG icon set
   lib/
-    schedule.ts            Calendar-day review and daily-set selection
+    schedule.ts            Calendar-day output review and daily-set selection
+    exposure.ts            Pack drafts and expression-review scheduling
     storage.ts             Versioned loading, validation, JSON export
     *.test.ts              Content and scheduling checks
   styles.css               Responsive theme and component styles
 public/                    Offline-safe app icons
-scripts/browser-check.cjs  Optional browser acceptance check
+scripts/browser-check.cjs  Original output regression acceptance
+scripts/exposure-check.cjs Original input-first regression
+scripts/bec-check.cjs      Multi-topic readings and source workspace acceptance
 vite.config.ts             Vite and production PWA configuration
 ```
 
@@ -110,7 +142,7 @@ A feature-detected, read-only `get_drill_progress` WebMCP tool exposes aggregate
 
 ## Verification
 
-`npm test` uses Node’s built-in test runner and type stripping; no unit-test framework is needed. Tests cover calendar boundaries, interval calculation, due-date inclusion, weak-item priority, stable/unique daily selection, all modules/types, and complete tone feedback.
+`npm test` uses Node’s built-in test runner and type stripping; no unit-test framework is needed. Eleven tests cover calendar boundaries, interval calculation, due-date inclusion, weak-item priority, stable/unique daily selection, content completeness, lossless legacy v1 loading, recovery for malformed new data, explicit phrase-state scheduling, content-to-expression consistency, cross-pack and cross-day draft retention, recommendations, and validation of imported readings.
 
 The optional browser check uses Playwright with installed Microsoft Edge and isolated temporary browser profiles. It never touches the user’s regular browser data. It covers daily and review flows, drafts/reveals across reloads, hints, phrase search/filter/notes, metrics, theme persistence, JSON export, reset cancellation, production offline reload/write, manifest icons, narrow layouts, and storage failure states. It modifies due dates only inside its own temporary test profile to exercise overdue reviews.
 
@@ -119,8 +151,14 @@ To run it with a separate Playwright installation, start the production preview 
 ```powershell
 $env:PLAYWRIGHT_MODULE = 'C:\path\to\node_modules\playwright'
 node scripts/browser-check.cjs
+node scripts/exposure-check.cjs
+node scripts/bec-check.cjs
 ```
 
 Optionally set `DRILL_TEST_URL` to another production preview URL. Screenshots go to ignored `test-results/`. Browser automation uses the available Node Playwright runtime because Python Playwright was not installed in the build environment.
 
 PWA implementation reference: [vite-plugin-pwa guide](https://vite-pwa-org.netlify.app/guide/) and [prompted updates](https://vite-pwa-org.netlify.app/guide/prompt-for-update).
+
+The exposure acceptance check covers input-only completion, all six stages and their support, choice feedback, drafts and reflection across reloads, unmarked saves, personal expressions, scheduled phrase return and rescheduling, 320/390/1280 layouts, dark mode, 200% text, and offline draft writes. It uses synthetic learning data in an isolated Edge profile. Tests do not prove native iPhone installation or deployment to the public URL.
+
+The BEC browser check exercises all six reading flows, per-pack examples/hints, topic selection and progress, independent drafts across reloads, source attribution, importing plain text, reading notes/logs, phrase capture and topic filters, dark mode, narrow/desktop/200% text layouts, and offline reading/note updates. Test data is synthetic and isolated from user data.

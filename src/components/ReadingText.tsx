@@ -1,0 +1,6 @@
+import type { ExposurePack } from '../types';
+export default function ReadingText({ pack }: { pack: ExposurePack }) {
+  const reading = pack.reading;
+  if (!reading) return null;
+  return <article className="reading-text"><div className="reading-kicker"><span>{reading.genre}</span><span>Original BEC-oriented text</span></div><h2>{reading.title}</h2><p className="reading-situation">{reading.situation}</p>{reading.table && <div className="reading-table"><table><caption>{reading.table.caption}</caption><thead><tr>{reading.table.headings.map(h => <th key={h} scope="col">{h}</th>)}</tr></thead><tbody>{reading.table.rows.map(row => <tr key={row[0]}>{row.map((cell,i) => i === 0 ? <th scope="row" key={i}>{cell}</th> : <td key={i}>{cell}</td>)}</tr>)}</tbody></table></div>}<div className="reading-body">{reading.paragraphs.map((text,i) => <p key={i}><span className="paragraph-number" aria-label={`Paragraph ${i+1}`}>{String(i+1).padStart(2,'0')}</span>{text}</p>)}</div><details><summary>Business concepts · understand the situation</summary><dl>{reading.glossary.map(g => <div key={g.term}><dt>{g.term}</dt><dd>{g.meaning}</dd></div>)}</dl></details><details><summary>How the whole text works</summary><ol>{reading.structure.map(step => <li key={step}>{step}</li>)}</ol></details></article>;
+}
