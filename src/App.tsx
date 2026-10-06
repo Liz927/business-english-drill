@@ -14,6 +14,8 @@ import { allPacks, becPacks, findPack } from './data/bec';
 import Library from './components/Library';
 import Sources from './components/Sources';
 import { openPack, recommendPack, markPhrase, phraseReviews } from './lib/exposure';
+import ShortReading from './components/ShortReading';
+import { starterReading } from './data/shortReadings';
 import { useMobileKeyboard } from './hooks/useMobileKeyboard';
 
 type Page = 'home' | 'review' | 'progress' | 'phrases' | 'settings' | 'drill' | 'done' | 'exposure' | 'exposure-done' | 'sources';
@@ -43,9 +45,10 @@ export default function App() {
   const todayComplete = data.completedDates.includes(today);
   const suggestedPack = recommendPack(becPacks, data);
   const activePack = findPack(data.exposureSession?.packId);
-  const packDone = (data.exposureHistory ?? []).some(h => h.date === today && h.packId === suggestedPack.id);
+  const shortReadings = [starterReading, ...(data.shortReadings ?? [])];
+  const shortReading = shortReadings.find(r => r.id === data.activeShortReading) ?? data.shortReadings?.[0] ?? starterReading;
+  const shortProgress = data.shortReadingProgress?.[shortReading.id] ?? { note: '', imitation: '' };
   const phraseDue = phraseReviews(data.phrases, today);
-  const packActive = data.exposureSession?.packId === suggestedPack.id;
   const due = dueItems(data.reviews, today).filter(r => exercises.some(q => q.id === r.questionId));
   const dailyActive = data.session?.date === today && data.session.index < data.session.ids.length;
   const reviewActive = data.reviewSession && data.reviewSession.index < data.reviewSession.ids.length;
@@ -151,10 +154,13 @@ export default function App() {
     {storageError && <div className="banner error" role="alert">{storageError}<button className="text-button" onClick={() => setPage('settings')}>Open Settings</button></div>}
     {offline && <div className="banner" role="status">You’re offline. Your drills and saved phrases are available on this device.</div>}
     <main id="main" ref={main} tabIndex={-1}>
-      {page === 'home' && <><div className="section-top home-date"><p className="eyebrow">YOUR DAILY MOMENT OF CLARITY</p><span>{new Date(`${today}T12:00:00`).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</span></div><section className="daily exposure-home"><div><p className="eyebrow">BEC HIGHER · SUGGESTED READING</p><h1>{suggestedPack.title}</h1><p>{suggestedPack.topic}</p><p className="pack-duration">About 10–15 minutes · go at your own pace</p><button className="primary" onClick={() => startPack()}>{packDone ? 'Revisit today’s pack' : packActive ? 'Continue your pack' : 'Start with the reading'}<Icon name="arrow"/></button>{packDone && <p className="completion-line"><Icon name="check"/> You’ve made time for the language today.</p>}</div><div className="daily-art" aria-hidden="true"><span>“</span><i/><i/><i/></div></section>
-        <p className="quiet">Absorb → Notice → Choose → Imitate <span className="muted">· Recall & Produce when you’re ready.</span><br/>Reading and noticing can be enough for today.</p>
+      {page === 'home' && <><div className="section-top home-date"><p className="eyebrow">YOUR DAILY MOMENT OF CLARITY</p><span>{new Date(`${today}T12:00:00`).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</span></div><ShortReading key={shortReading.id} reading={shortReading} readings={shortReadings} progress={shortProgress} phrases={data.phrases} storageError={!!storageError}
+          onSelect={activeShortReading => setData(d => ({ ...d, activeShortReading }))}
+          onImport={incoming => setData(d => ({ ...d, shortReadings: [...(d.shortReadings ?? []).filter(r => !incoming.some(n => n.id === r.id)), ...incoming], activeShortReading:incoming[0].id }))}
+          onChange={progress => setData(d => ({ ...d, shortReadingProgress: { ...d.shortReadingProgress, [shortReading.id]:progress } }))}
+          onSave={savePersonalPhrase}/>
         {phraseDue.length > 0 && <button className="review-nudge home-link" onClick={() => setPage('review')}><Icon name="review"/><span><strong>{phraseDue.length} expressions to revisit</strong><span>Almost Mine comes first. Meet the pattern in another context.</span></span><Icon name="arrow"/></button>}
-        <div className="direct-source"><span>Studying from a BEC book or sample paper?</span><button className="text-button" onClick={() => setPage('sources')}>Use my BEC materials →</button></div><Library data={data} onOpen={startPack} onSources={() => setPage('sources')}/><details className="legacy-entry"><summary>Ready to write? Original output practice</summary><p>40 exercises across 10 communication functions. Model answers, hints, self-ratings and your previous records are available here.</p><button className="secondary" onClick={startDaily}>{todayComplete ? 'View completed output session' : dailyActive ? 'Continue output practice' : 'Start output practice'}</button><p className="fine-print">Foundation skills for BEC Higher and work. These authored exercises are not official exam questions or timed mock tests.</p></details>
+        <details className="long-reading-shelf"><summary>想读更多？打开完整阅读书架</summary><div className="direct-source"><span>Studying from a BEC book or sample paper?</span><button className="text-button" onClick={() => setPage('sources')}>Use my BEC materials →</button></div><Library data={data} onOpen={startPack} onSources={() => setPage('sources')}/></details><details className="legacy-entry"><summary>Ready to write? Original output practice</summary><p>40 exercises across 10 communication functions. Model answers, hints, self-ratings and your previous records are available here.</p><button className="secondary" onClick={startDaily}>{todayComplete ? 'View completed output session' : dailyActive ? 'Continue output practice' : 'Start output practice'}</button><p className="fine-print">Foundation skills for BEC Higher and work. These authored exercises are not official exam questions or timed mock tests.</p></details>
         <div className="home-links">{[{ page: 'review' as const, title: 'Review', description: phraseDue.length ? `${phraseDue.length} expressions ready to revisit.` : reviewActive ? 'Your review is ready to continue.' : due.length ? `${due.length} items ready to revisit.` : 'Let the language settle. Nothing due yet.', icon: 'review' },{ page: 'phrases' as const, title: 'Phrase Bank', description: data.phrases.length ? `${data.phrases.length} useful phrases, in your own collection.` : 'Keep the phrases you want to make your own.', icon: 'phrases' },{ page: 'progress' as const, title: 'Progress', description: 'Notice what’s becoming more natural.', icon: 'progress' },{ page: 'settings' as const, title: 'Settings', description: 'Make this little space work for you.', icon: 'settings' }].map(item => <button className="home-link" key={item.page} onClick={() => setPage(item.page)}><span className="link-icon"><Icon name={item.icon}/></span><span><strong>{item.title}</strong><span>{item.description}</span></span><Icon name="arrow" size={18}/></button>)}</div>
         <div className="home-bottom"><span>Built around your working day.</span><span>Meetings · Projects · Professional communication</span></div></>}
       {page === 'sources' && <Sources readings={data.readings ?? []} onChange={readings => setData(d => ({ ...d, readings }))} onSave={savePersonalPhrase} onBack={() => setPage('home')}/>}

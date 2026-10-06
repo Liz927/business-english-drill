@@ -142,7 +142,7 @@ A feature-detected, read-only `get_drill_progress` WebMCP tool exposes aggregate
 
 ## Verification
 
-`npm test` uses Node’s built-in test runner and type stripping; no unit-test framework is needed. Eleven tests cover calendar boundaries, interval calculation, due-date inclusion, weak-item priority, stable/unique daily selection, content completeness, lossless legacy v1 loading, recovery for malformed new data, explicit phrase-state scheduling, content-to-expression consistency, cross-pack and cross-day draft retention, recommendations, and validation of imported readings.
+`npm test` uses Node’s built-in test runner and type stripping; no unit-test framework is needed. Fourteen tests cover calendar boundaries, interval calculation, due-date inclusion, weak-item priority, stable/unique daily selection, content completeness, lossless legacy v1 loading, recovery for malformed new data, explicit phrase-state scheduling, content-to-expression consistency, cross-pack and cross-day draft retention, recommendations, and validation of imported readings.
 
 The optional browser check uses Playwright with installed Microsoft Edge and isolated temporary browser profiles. It never touches the user’s regular browser data. It covers daily and review flows, drafts/reveals across reloads, hints, phrase search/filter/notes, metrics, theme persistence, JSON export, reset cancellation, production offline reload/write, manifest icons, narrow layouts, and storage failure states. It modifies due dates only inside its own temporary test profile to exercise overdue reviews.
 
@@ -162,3 +162,12 @@ PWA implementation reference: [vite-plugin-pwa guide](https://vite-pwa-org.netli
 The exposure acceptance check covers input-only completion, all six stages and their support, choice feedback, drafts and reflection across reloads, unmarked saves, personal expressions, scheduled phrase return and rescheduling, 320/390/1280 layouts, dark mode, 200% text, and offline draft writes. It uses synthetic learning data in an isolated Edge profile. Tests do not prove native iPhone installation or deployment to the public URL.
 
 The BEC browser check exercises all six reading flows, per-pack examples/hints, topic selection and progress, independent drafts across reloads, source attribution, importing plain text, reading notes/logs, phrase capture and topic filters, dark mode, narrow/desktop/200% text layouts, and offline reading/note updates. Test data is synthetic and isolated from user data.
+
+
+## Supported short reading
+
+Today opens one short passage directly, with an optional keyword preview, Chinese context hints, contextual phrase saving, reading-only completion and optional imitation. Selecting passage text (or choosing a sentence on mobile) prepares a question containing the passage, source and saved question note. Copy sends nothing; clipboard denial reveals a manual-copy fallback.
+
+A built-in original passage is available immediately. Personal textbook excerpts stay in ignored `personal-materials/`, outside `src/`, `public/` and the deployment output. Import a `bec-short-readings-v1` JSON bundle using **换一段 / 导入我的教材样板**. Each entry has an explicit source, 3–5 keywords and supported practice. Re-importing an existing ID updates its content without replacing progress. Imported content is rendered as text and stored only in this browser's existing v1 data, alongside old notes, phrases and drills. Settings export includes it; there is no account sync. The bundled public demo is labelled original, not an official textbook extract.
+
+Run `node scripts/short-reading-check.cjs` with the local private sample at `personal-materials/bec-higher-module-1.json` (not in Git). This check covers file rejection, real private import, preserved old records, repeat import, clipboard and manual fallback, selection, phrase provenance, reading-only completion, offline persistence and mobile/desktop layout. Native iOS selection and file import still need on-device verification.

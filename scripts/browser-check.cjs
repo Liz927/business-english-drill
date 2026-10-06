@@ -64,7 +64,7 @@ const key = 'business-english-drill:v1';
       assert.equal(saved.reviews[attempt.questionId].due, due);
     }
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'When sales rise but margins fall.', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'More sales, less profit?', level: 1 })).toBeVisible();
     assert.equal(await page.getByRole('button', { name: 'Start', exact: true }).count(), 0);
     await nav('Phrase Bank');
     await page.getByLabel('Personal note').fill('Use this in the next vendor call.');
@@ -115,7 +115,7 @@ const key = 'business-english-drill:v1';
     assert.equal(manifest.display, 'standalone'); assert.equal(manifest.icons.length, 3);
     for (const icon of manifest.icons) assert.equal((await page.request.get(new URL(icon.src, base.replace(/\/?$/, '/') + 'manifest.webmanifest').href)).status(),200);
     await context.setOffline(true); await page.reload();
-    await expect(page.getByRole('heading', { name: 'When sales rise but margins fall.', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'More sales, less profit?', level: 1 })).toBeVisible();
     await nav('Phrase Bank'); await expect(page.getByLabel('Personal note')).toHaveValue('Use this in the next vendor call.');
     await page.getByLabel('Personal note').fill('Updated while offline.');
     await page.reload(); await nav('Phrase Bank'); await expect(page.getByLabel('Personal note')).toHaveValue('Updated while offline.');
@@ -143,3 +143,4 @@ const key = 'business-english-drill:v1';
     throw error;
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode=1; });
+

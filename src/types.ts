@@ -22,6 +22,13 @@ export interface ExposurePack {
   produceContext: string; produceModel: string; produceHint?: string; selfCheck?: string;
 }
 export interface PersonalReading { id: string; title: string; topic: string; source: string; text: string; note: string; savedAt: string; lastRead?: string }
+export interface ShortReading {
+  id: string; title: string; topic: string; source: string; sourceKind: 'original' | 'personal';
+  situation: string; paragraphs: string[]; hint: string;
+  words: { term: string; meaning: string; example: string; focus: 'keep' | 'recognise' }[];
+  imitation: { prompt: string; scaffold: string; example: string };
+}
+export interface ShortReadingProgress { note: string; imitation: string; lastRead?: string }
 export const stages = ['Absorb', 'Notice', 'Choose', 'Imitate', 'Recall', 'Produce'] as const;
 export type Stage = typeof stages[number];
 export interface ExposureSession { id: string; packId: string; date: string; stage: Stage; visited: Stage[]; choice: number | null; checked: boolean; imitation: string[]; recall: string; produce: string; hintLevel: number; recallFeeling?: 'Hesitated' | 'Comfortable' }
@@ -35,4 +42,5 @@ export interface AppData {
   completedDates: string[]; session: Session | null; reviewSession: Session | null;
   exposureSession?: ExposureSession | null; exposureHistory?: ExposureRecord[];
   exposureDrafts?: Record<string, ExposureSession>; readings?: PersonalReading[];
+  shortReadings?: ShortReading[]; shortReadingProgress?: Record<string, ShortReadingProgress>; activeShortReading?: string;
 }

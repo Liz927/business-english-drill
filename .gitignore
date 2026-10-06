@@ -2,5 +2,6 @@ node_modules/
 dist/
 .sites-runtime/
 test-results/
+personal-materials/
 *.log
 .deployment/

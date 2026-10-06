@@ -1,5 +1,6 @@
 import type { AppData, Session } from '../types';
 import { stages } from '../types.ts';
+import { validShortReading } from './shortReading.ts';
 export const STORAGE_KEY = 'business-english-drill:v1';
 export function emptyData(): AppData {
   return { version: 1, theme: 'system', rescue: true, attempts: [], reviews: {}, phrases: [], completedDates: [], session: null, reviewSession: null, exposureSession: null, exposureHistory: [] };
@@ -20,7 +21,10 @@ export function validData(x: unknown): x is AppData {
     && Array.isArray(x.completedDates) && x.completedDates.every(text) && validSession(x.session) && validSession(x.reviewSession)
     && validExposure(x.exposureSession) && (x.exposureHistory === undefined || (Array.isArray(x.exposureHistory) && x.exposureHistory.every(h => record(h) && ['id','packId','date','at'].every(k => text(h[k])) && Array.isArray(h.stages) && h.stages.every(stage))))
     && (x.exposureDrafts === undefined || (record(x.exposureDrafts) && Object.entries(x.exposureDrafts).every(([id,s]) => record(s) && s.packId === id && validExposure(s))))
-    && (x.readings === undefined || (Array.isArray(x.readings) && x.readings.every(r => record(r) && ['id','title','topic','source','text','note','savedAt'].every(k => text(r[k])) && optionalText(r.lastRead))));
+    && (x.readings === undefined || (Array.isArray(x.readings) && x.readings.every(r => record(r) && ['id','title','topic','source','text','note','savedAt'].every(k => text(r[k])) && optionalText(r.lastRead))))
+    && (x.shortReadings === undefined || (Array.isArray(x.shortReadings) && x.shortReadings.every(validShortReading)))
+    && optionalText(x.activeShortReading)
+    && (x.shortReadingProgress === undefined || (record(x.shortReadingProgress) && Object.values(x.shortReadingProgress).every(p => record(p) && text(p.note) && text(p.imitation) && optionalText(p.lastRead))));
 }
 export function loadData(): { data: AppData; error: string | null } {
   try {

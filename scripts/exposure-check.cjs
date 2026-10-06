@@ -14,11 +14,11 @@ const key = 'business-english-drill:v1';
   const state = () => page.evaluate(k => JSON.parse(localStorage.getItem(k)),key);
   const nav = name => page.getByRole('navigation', {name:'Main navigation'}).getByRole('button',{name,exact:true}).click();
   const stage = name => page.getByRole('navigation',{name:'Learning stages'}).getByRole('button',{name:new RegExp(name)}).click();
-  const resume = () => page.getByRole('button',{name:'Open Make room for a realistic timeline.'}).click();
+  const resume = async () => { if(await page.locator('.long-reading-shelf').getAttribute('open')===null) await page.getByText('想读更多？打开完整阅读书架',{exact:true}).click(); await page.getByRole('button',{name:'Open Make room for a realistic timeline.'}).click(); };
   const noOverflow = async label => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label + ' horizontal overflow');
   try {
     await page.goto(base); await page.waitForLoadState('networkidle');
-    await page.getByRole('button',{name:'Open Make room for a realistic timeline.'}).click();
+    await resume();
     await expect(page.locator('.exposure-card')).toHaveCount(4);
     assert.equal(await page.locator('textarea').count(),0);
     assert.equal((await state()).phrases.length,0);
