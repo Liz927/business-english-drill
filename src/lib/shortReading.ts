@@ -1,7 +1,18 @@
-import type { ShortReading } from '../types';
+import type { ShortReading, ShortReadingProgress } from '../types';
 
 const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 const text = (x: unknown, max = 3000): x is string => typeof x === 'string' && x.trim().length > 0 && x.length <= max;
+export function validQuiz(x: unknown): boolean {
+  return object(x) && text(x.prompt) && text(x.evidence,4000) && Number.isInteger(x.answer) && Number(x.answer) >= 0 && Number(x.answer) < 4 &&
+    Array.isArray(x.options) && x.options.length === 4 && x.options.every(o => object(o) && text(o.text) && text(o.explanation));
+}
+export function validComprehension(x: unknown): boolean {
+  return x === undefined || (object(x) && text(x.question,40000) && Number.isInteger(x.choice) && Number(x.choice) >= 0 && Number(x.choice) < 4 && typeof x.revealed === 'boolean');
+}
+export function currentAnswer(reading: ShortReading, progress: ShortReadingProgress) {
+  // A changed imported question must not display feedback for an older answer.
+  return reading.quiz && progress.comprehension?.question === JSON.stringify(reading.quiz) ? progress.comprehension : undefined;
+}
 export function validShortReading(x: unknown): x is ShortReading {
   return object(x) && text(x.id, 100) && /^[a-z0-9-]+$/.test(x.id) &&
     ['title','topic','source','situation','hint'].every(k => text(x[k])) &&
@@ -9,7 +20,8 @@ export function validShortReading(x: unknown): x is ShortReading {
     Array.isArray(x.paragraphs) && x.paragraphs.length > 0 && x.paragraphs.length <= 5 && x.paragraphs.every(p => text(p, 4000)) &&
     Array.isArray(x.words) && x.words.length >= 3 && x.words.length <= 5 &&
     x.words.every(w => object(w) && text(w.term,150) && text(w.meaning) && text(w.example) && ['keep','recognise'].includes(String(w.focus))) &&
-    object(x.imitation) && ['prompt','scaffold','example'].every(k => text((x.imitation as Record<string, unknown>)[k]));
+    object(x.imitation) && ['prompt','scaffold','example'].every(k => text((x.imitation as Record<string, unknown>)[k])) &&
+    (x.quiz === undefined || (validQuiz(x.quiz) && x.paragraphs.some(p => p.includes((x.quiz as { evidence: string }).evidence))));
 }
 export function parseShortReadings(raw: string): ShortReading[] {
   if (raw.length > 200000) throw new Error('资料包太大了，请选择小于 200 KB 的短阅读包。');

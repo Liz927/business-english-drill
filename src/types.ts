@@ -27,8 +27,9 @@ export interface ShortReading {
   situation: string; paragraphs: string[]; hint: string;
   words: { term: string; meaning: string; example: string; focus: 'keep' | 'recognise' }[];
   imitation: { prompt: string; scaffold: string; example: string };
+  quiz?: { prompt: string; options: { text: string; explanation: string }[]; answer: number; evidence: string };
 }
-export interface ShortReadingProgress { note: string; imitation: string; lastRead?: string }
+export interface ShortReadingProgress { note: string; imitation: string; lastRead?: string; comprehension?: { question: string; choice: number; revealed: boolean } }
 export const stages = ['Absorb', 'Notice', 'Choose', 'Imitate', 'Recall', 'Produce'] as const;
 export type Stage = typeof stages[number];
 export interface ExposureSession { id: string; packId: string; date: string; stage: Stage; visited: Stage[]; choice: number | null; checked: boolean; imitation: string[]; recall: string; produce: string; hintLevel: number; recallFeeling?: 'Hesitated' | 'Comfortable' }

@@ -1,11 +1,11 @@
 import type { AppData, Category } from '../types';
 import { categories } from '../types';
 import { becPacks, findPack } from '../data/bec';
-import { starterReading } from '../data/shortReadings';
+import { shortReadings } from '../data/shortReadings';
 import { exercises } from '../data/exercises';
 export default function Progress({ data }: { data: AppData }) {
   const shortVisits = Object.entries(data.shortReadingProgress ?? {}).filter(([,p]) => p.lastRead).sort((a,b) => b[1].lastRead!.localeCompare(a[1].lastRead!));
-  const shortTitles = [starterReading, ...(data.shortReadings ?? [])];
+  const shortTitles = [...shortReadings, ...(data.shortReadings ?? [])];
   const recent = data.attempts.slice(-20);
   const rate = recent.length ? Math.round(recent.filter(a => a.rating !== 'Easy').length / recent.length * 100) : null;
   const stats = categories.map(category => {

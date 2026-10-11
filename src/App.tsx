@@ -15,7 +15,7 @@ import Library from './components/Library';
 import Sources from './components/Sources';
 import { openPack, recommendPack, markPhrase, phraseReviews } from './lib/exposure';
 import ShortReading from './components/ShortReading';
-import { starterReading } from './data/shortReadings';
+import { starterReading, shortReadings as builtInShortReadings } from './data/shortReadings';
 import { useMobileKeyboard } from './hooks/useMobileKeyboard';
 
 type Page = 'home' | 'review' | 'progress' | 'phrases' | 'settings' | 'drill' | 'done' | 'exposure' | 'exposure-done' | 'sources';
@@ -45,7 +45,7 @@ export default function App() {
   const todayComplete = data.completedDates.includes(today);
   const suggestedPack = recommendPack(becPacks, data);
   const activePack = findPack(data.exposureSession?.packId);
-  const shortReadings = [starterReading, ...(data.shortReadings ?? [])];
+  const shortReadings = [...(data.shortReadings ?? []), ...builtInShortReadings];
   const shortReading = shortReadings.find(r => r.id === data.activeShortReading) ?? data.shortReadings?.[0] ?? starterReading;
   const shortProgress = data.shortReadingProgress?.[shortReading.id] ?? { note: '', imitation: '' };
   const phraseDue = phraseReviews(data.phrases, today);
@@ -69,7 +69,7 @@ export default function App() {
     const timer = setInterval(update, 30000);
     return () => { removeEventListener('online', update); removeEventListener('offline', update); document.removeEventListener('visibilitychange', update); clearInterval(timer); };
   }, []);
-  useEffect(() => { window.scrollTo(0,0); main.current?.focus({ preventScroll: true }); }, [page]);
+  useEffect(() => { window.scrollTo(0,0); main.current?.focus({ preventScroll: true }); }, [page, data.activeShortReading]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(''), 2800); return () => clearTimeout(timer); } }, [notice]);
   useEffect(() => {
     const context = (document as Document & { modelContext?: { registerTool: (tool: unknown, options: { signal: AbortSignal }) => void | Promise<void> } }).modelContext;

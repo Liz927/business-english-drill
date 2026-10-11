@@ -1,6 +1,6 @@
 import type { AppData, Session } from '../types';
 import { stages } from '../types.ts';
-import { validShortReading } from './shortReading.ts';
+import { validShortReading, validComprehension } from './shortReading.ts';
 export const STORAGE_KEY = 'business-english-drill:v1';
 export function emptyData(): AppData {
   return { version: 1, theme: 'system', rescue: true, attempts: [], reviews: {}, phrases: [], completedDates: [], session: null, reviewSession: null, exposureSession: null, exposureHistory: [] };
@@ -24,7 +24,7 @@ export function validData(x: unknown): x is AppData {
     && (x.readings === undefined || (Array.isArray(x.readings) && x.readings.every(r => record(r) && ['id','title','topic','source','text','note','savedAt'].every(k => text(r[k])) && optionalText(r.lastRead))))
     && (x.shortReadings === undefined || (Array.isArray(x.shortReadings) && x.shortReadings.every(validShortReading)))
     && optionalText(x.activeShortReading)
-    && (x.shortReadingProgress === undefined || (record(x.shortReadingProgress) && Object.values(x.shortReadingProgress).every(p => record(p) && text(p.note) && text(p.imitation) && optionalText(p.lastRead))));
+    && (x.shortReadingProgress === undefined || (record(x.shortReadingProgress) && Object.values(x.shortReadingProgress).every(p => record(p) && text(p.note) && text(p.imitation) && optionalText(p.lastRead) && validComprehension(p.comprehension))));
 }
 export function loadData(): { data: AppData; error: string | null } {
   try {

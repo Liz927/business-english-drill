@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SavedPhrase, ShortReading as Reading, ShortReadingProgress } from '../types';
-import { parseShortReadings, questionFor } from '../lib/shortReading';
+import { currentAnswer, parseShortReadings, questionFor } from '../lib/shortReading';
 
 interface Props {
   reading: Reading; readings: Reading[]; progress: ShortReadingProgress; phrases: SavedPhrase[];
@@ -17,6 +17,11 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
   const [copyText, setCopyText] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const index = readings.findIndex(r => r.id === reading.id);
+  const previous = readings[index - 1];
+  const next = readings[index + 1];
+  const answer = currentAnswer(reading, progress);
+  const quiz = reading.quiz;
   const sentences = reading.paragraphs.flatMap(p => p.match(/[^.!?]+[.!?]+(?:[’”])?|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) ?? [p]);
 
   useEffect(() => {
@@ -49,6 +54,8 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
   }
   return <section className="short-reading" aria-label="Today’s short reading">
     <div className="short-heading"><p className="eyebrow">ONE SMALL READING · 今天读这一段</p><span className="tag">约 3–5 分钟 · 不计时</span></div>
+    <nav className="reading-pager" aria-label="切换短阅读"><button className="secondary" disabled={!previous} onClick={() => previous && onSelect(previous.id)}>← 上一篇</button><span>第 {index + 1} / {readings.length} 篇</span><button className="secondary" disabled={!next} onClick={() => next && onSelect(next.id)}>下一篇 →</button></nav>
+    <label className="reading-picker">选一篇阅读<select value={reading.id} onChange={e => onSelect(e.target.value)}>{readings.map((r,i) => <option key={r.id} value={r.id}>{i + 1}. {r.title}{r.sourceKind === 'personal' ? ' · 我的教材' : ''}</option>)}</select></label>
     <h1>{reading.title}</h1>
     <p className="short-situation">{reading.situation}</p>
     <p className="fine-print short-source">{reading.sourceKind === 'personal' ? '个人教材摘录' : '原创入门短文'} · {reading.source}<br/>情境说明、词义提示和仿写由本应用整理。</p>
@@ -60,6 +67,9 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
 
     <div ref={body} className="short-body" aria-label="Reading passage">{reading.paragraphs.map((p,i) => <p key={i}>{p}</p>)}</div>
     <p className="short-invitation">先读懂在讲什么。遇到不明白的句子，可以选中它，或在下方选择。</p>
+    {quiz ? <section className="reading-quiz" aria-label="阅读理解小练习"><p className="eyebrow">READ → CHOOSE → UNDERSTAND</p><h2>读完，试一道题</h2><p className="muted">可以回看原文，也可以跳过。不计时，不影响换篇。</p><fieldset className="options" disabled={answer?.revealed}><legend>{quiz.prompt}</legend>{quiz.options.map((o,i) => <label className={`option ${answer?.choice === i ? 'selected' : ''}`} key={i}><input type="radio" name={`comprehension-${reading.id}`} checked={answer?.choice === i} onChange={() => onChange({ ...progress, comprehension:{ question:JSON.stringify(quiz), choice:i, revealed:false } })}/><span className="option-letter">{'ABCD'[i]}</span><span>{o.text}</span></label>)}</fieldset>
+      {!answer?.revealed ? <button className="primary" disabled={!answer} onClick={() => answer && onChange({ ...progress, comprehension:{ ...answer, revealed:true } })}>看答案与解析</button> : <div className="quiz-feedback"><p role="status"><strong>{answer.choice === quiz.answer ? '选对了，我们看看原文依据。' : `你选了 ${'ABCD'[answer.choice]}，更符合原文的是 ${'ABCD'[quiz.answer]}。`}</strong></p><p className="small-label">原文依据</p><blockquote>{quiz.evidence}</blockquote><ol className="quiz-explanations">{quiz.options.map((o,i) => <li key={i}><strong>{'ABCD'[i]} · {i === quiz.answer ? '正确选项' : '为什么不选'}{i === answer.choice ? ' · 你的选择' : ''}</strong><p>{o.explanation}</p></li>)}</ol><button className="text-button" onClick={() => onChange({ ...progress, comprehension:undefined })}>再试一次</button><p className="fine-print">这是原创理解练习，不代表真题成绩。答对也不等于已经掌握。</p></div>}
+    </section> : <p className="fine-print">这篇个人材料暂未配理解题，可以直接阅读、收藏，或切换到其他短文练习。</p>}
     <details className="short-support"><summary>有点卡住？展开中文理解提示</summary><p>{reading.hint}</p></details>
 
     <details className="short-support question-support"><summary>这句不明白 · 带着上下文问 Evan</summary>
@@ -80,6 +90,7 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
     </details>
 
     <div className="short-finish"><p>读懂这一小段，今天就够了。</p><button className="primary" disabled={storageError} onClick={() => onChange({ ...progress, lastRead:new Date().toISOString() })}>{progress.lastRead ? '再读一次，记下来' : '今天读到这里'}</button>{progress.lastRead && <p role="status">{storageError ? '这次更改尚未保存，请先导出备份。' : '阅读记录已保存在这台设备。收藏或完成阅读都不代表已经掌握。'}</p>}</div>
+    <div className="reading-next">{next ? <><p>下一篇 · {next.title}</p><button className="secondary" onClick={() => onSelect(next.id)}>继续读下一篇 →</button></> : <><p>已到最后一篇。可以从上方目录重读，也可以今天就停在这里。</p><button className="secondary" disabled={!previous} onClick={() => previous && onSelect(previous.id)}>回到上一篇</button></>}</div>
     <details className="short-support"><summary>还有余力？试着模仿一句（可选）</summary><p>{reading.imitation.prompt}</p><blockquote>{reading.imitation.scaffold}</blockquote><label>我的一句话<textarea rows={2} maxLength={2000} value={progress.imitation} onChange={e => onChange({ ...progress, imitation:e.target.value })}/></label><details><summary>看一个示例</summary><p>{reading.imitation.example}</p></details></details>
 
     <details className="short-materials"><summary>换一段 / 导入我的教材样板</summary><p className="muted">导入一次，原文和阅读记录就留在这台设备；换手机需要重新导入资料包。</p><label>我的短阅读<select value={reading.id} onChange={e => onSelect(e.target.value)}>{readings.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label><label className="short-file">选择短阅读资料包（JSON）<input ref={file} type="file" accept=".json,application/json" disabled={busy || storageError} onChange={e => void importFile(e.target.files?.[0])}/></label><p className="fine-print">重复导入同一篇只更新内容，保留你的笔记和阅读记录。</p><p role="status">{busy ? '正在读取…' : message}</p></details>
