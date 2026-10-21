@@ -1,4 +1,4 @@
-import type { ShortReading, ShortReadingProgress } from '../types';
+import type { AppData, ShortReading, ShortReadingProgress } from '../types';
 
 const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 const text = (x: unknown, max = 3000): x is string => typeof x === 'string' && x.trim().length > 0 && x.length <= max;
@@ -15,6 +15,8 @@ export function currentAnswer(reading: ShortReading, progress: ShortReadingProgr
 }
 export function validShortReading(x: unknown): x is ShortReading {
   return object(x) && text(x.id, 100) && /^[a-z0-9-]+$/.test(x.id) &&
+    (x.unit === undefined || (object(x.unit) && text(x.unit.id,100) && /^[a-z0-9-]+$/.test(x.unit.id) && text(x.unit.title,150) &&
+      Number.isInteger(x.unit.lesson) && Number.isInteger(x.unit.total) && Number(x.unit.lesson) >= 1 && Number(x.unit.lesson) <= Number(x.unit.total) && Number(x.unit.total) <= 30)) &&
     ['title','topic','source','situation','hint'].every(k => text(x[k])) &&
     ['original','personal'].includes(String(x.sourceKind)) &&
     Array.isArray(x.paragraphs) && x.paragraphs.length > 0 && x.paragraphs.length <= 5 && x.paragraphs.every(p => text(p, 4000)) &&
@@ -33,7 +35,25 @@ export function parseShortReadings(raw: string): ShortReading[] {
     new Set(value.readings.map(r => r.id)).size !== value.readings.length) {
     throw new Error('资料包格式不完整。需要原文、出处、情境说明和 3–5 个关键词；原有记录未改变。');
   }
+  for (const unit of readingUnits(value.readings)) {
+    const first = unit[0].unit!;
+    if (unit.length !== first.total || unit.some((r,i) => r.unit!.lesson !== i + 1 || r.unit!.title !== first.title || r.unit!.total !== first.total)) {
+      throw new Error('这个单元的课次不完整或重复，请选择完整学习包；原有记录未改变。');
+    }
+  }
   return value.readings;
+}
+export function readingUnits(readings: ShortReading[]): ShortReading[][] {
+  const groups = new Map<string, ShortReading[]>();
+  for (const r of readings) if (r.unit) groups.set(r.unit.id, [...(groups.get(r.unit.id) ?? []),r]);
+  return [...groups.values()].map(group => group.sort((a,b) => a.unit!.lesson - b.unit!.lesson));
+}
+export function resumeReading(readings: ShortReading[], progress: Record<string, ShortReadingProgress> = {}, active?: string) {
+  return readings.find(r => r.id === active && !progress[r.id]?.lastRead) ?? readings.find(r => !progress[r.id]?.lastRead);
+}
+export function importReadings(data: AppData, incoming: ShortReading[]): AppData {
+  return { ...data, shortReadings:[...(data.shortReadings ?? []).filter(r => !incoming.some(n => n.id === r.id)), ...incoming],
+    activeShortReading: incoming.some(r => r.id === data.activeShortReading) ? data.activeShortReading : (resumeReading(incoming,data.shortReadingProgress)?.id ?? incoming[0].id) };
 }
 export function questionFor(reading: ShortReading, selection: string, question: string): string {
   const quote = reading.paragraphs.some(p => p.includes(selection.trim())) ? selection.trim() : '';

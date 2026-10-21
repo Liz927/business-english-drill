@@ -17,6 +17,7 @@ import { openPack, recommendPack, markPhrase, phraseReviews } from './lib/exposu
 import ShortReading from './components/ShortReading';
 import { starterReading, shortReadings as builtInShortReadings } from './data/shortReadings';
 import { useMobileKeyboard } from './hooks/useMobileKeyboard';
+import { importReadings } from './lib/shortReading';
 
 type Page = 'home' | 'review' | 'progress' | 'phrases' | 'settings' | 'drill' | 'done' | 'exposure' | 'exposure-done' | 'sources';
 const navigation: { page: Page; label: string; icon: string }[] = [
@@ -155,8 +156,9 @@ export default function App() {
     {offline && <div className="banner" role="status">You’re offline. Your drills and saved phrases are available on this device.</div>}
     <main id="main" ref={main} tabIndex={-1}>
       {page === 'home' && <><div className="section-top home-date"><p className="eyebrow">YOUR DAILY MOMENT OF CLARITY</p><span>{new Date(`${today}T12:00:00`).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</span></div><ShortReading key={shortReading.id} reading={shortReading} readings={shortReadings} progress={shortProgress} phrases={data.phrases} storageError={!!storageError}
+          allProgress={data.shortReadingProgress ?? {}}
           onSelect={activeShortReading => setData(d => ({ ...d, activeShortReading }))}
-          onImport={incoming => setData(d => ({ ...d, shortReadings: [...(d.shortReadings ?? []).filter(r => !incoming.some(n => n.id === r.id)), ...incoming], activeShortReading:incoming[0].id }))}
+          onImport={incoming => setData(d => importReadings(d,incoming))}
           onChange={progress => setData(d => ({ ...d, shortReadingProgress: { ...d.shortReadingProgress, [shortReading.id]:progress } }))}
           onSave={savePersonalPhrase}/>
         {phraseDue.length > 0 && <button className="review-nudge home-link" onClick={() => setPage('review')}><Icon name="review"/><span><strong>{phraseDue.length} expressions to revisit</strong><span>Almost Mine comes first. Meet the pattern in another context.</span></span><Icon name="arrow"/></button>}

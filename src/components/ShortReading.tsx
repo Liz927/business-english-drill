@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SavedPhrase, ShortReading as Reading, ShortReadingProgress } from '../types';
 import { currentAnswer, parseShortReadings, questionFor } from '../lib/shortReading';
+import ReadingUnits from './ReadingUnits';
 
 interface Props {
   reading: Reading; readings: Reading[]; progress: ShortReadingProgress; phrases: SavedPhrase[];
   onSelect: (id: string) => void; onImport: (readings: Reading[]) => void;
   onChange: (progress: ShortReadingProgress) => void; onSave: (phrase: SavedPhrase) => void;
   storageError: boolean;
+  allProgress: Record<string, ShortReadingProgress>;
 }
-export default function ShortReading({ reading, readings, progress, phrases, onSelect, onImport, onChange, onSave, storageError }: Props) {
+export default function ShortReading({ reading, readings, progress, phrases, onSelect, onImport, onChange, onSave, storageError, allProgress }: Props) {
   const body = useRef<HTMLDivElement>(null);
   const fallback = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -17,9 +19,10 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
   const [copyText, setCopyText] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const index = readings.findIndex(r => r.id === reading.id);
-  const previous = readings[index - 1];
-  const next = readings[index + 1];
+  const sequence = reading.unit ? readings.filter(r => r.unit?.id === reading.unit!.id).sort((a,b) => a.unit!.lesson - b.unit!.lesson) : readings;
+  const index = sequence.findIndex(r => r.id === reading.id);
+  const previous = sequence[index - 1];
+  const next = sequence[index + 1];
   const answer = currentAnswer(reading, progress);
   const quiz = reading.quiz;
   const sentences = reading.paragraphs.flatMap(p => p.match(/[^.!?]+[.!?]+(?:[’”])?|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) ?? [p]);
@@ -53,12 +56,14 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
     catch { setCopyText(text); setCopyMessage('未能自动复制。请长按或全选下方文字，手动复制到聊天。'); }
   }
   return <section className="short-reading" aria-label="Today’s short reading">
+    <ReadingUnits readings={readings} progress={allProgress} active={reading.id} onSelect={onSelect} onImport={() => file.current?.click()} disabled={busy || storageError}/>
+    {message && <p role="alert">{message}</p>}
     <div className="short-heading"><p className="eyebrow">ONE SMALL READING · 今天读这一段</p><span className="tag">约 3–5 分钟 · 不计时</span></div>
-    <nav className="reading-pager" aria-label="切换短阅读"><button className="secondary" disabled={!previous} onClick={() => previous && onSelect(previous.id)}>← 上一篇</button><span>第 {index + 1} / {readings.length} 篇</span><button className="secondary" disabled={!next} onClick={() => next && onSelect(next.id)}>下一篇 →</button></nav>
+    <nav className="reading-pager" aria-label="切换短阅读"><button className="secondary" disabled={!previous} onClick={() => previous && onSelect(previous.id)}>← 上一篇</button><span>{reading.unit ? '本单元 · ' : ''}第 {index + 1} / {sequence.length} 篇</span><button className="secondary" disabled={!next} onClick={() => next && onSelect(next.id)}>下一篇 →</button></nav>
     <label className="reading-picker">选一篇阅读<select value={reading.id} onChange={e => onSelect(e.target.value)}>{readings.map((r,i) => <option key={r.id} value={r.id}>{i + 1}. {r.title}{r.sourceKind === 'personal' ? ' · 我的教材' : ''}</option>)}</select></label>
-    <h1>{reading.title}</h1>
+    <h1 id="current-reading-title" tabIndex={-1}>{reading.title}</h1>
     <p className="short-situation">{reading.situation}</p>
-    <p className="fine-print short-source">{reading.sourceKind === 'personal' ? '个人教材摘录' : '原创入门短文'} · {reading.source}<br/>情境说明、词义提示和仿写由本应用整理。</p>
+    <p className="fine-print short-source">{reading.sourceKind === 'personal' ? '个人教材摘录' : '原创入门短文'} · {reading.source}<br/>理解题、情境说明、词义提示和仿写为原创辅助练习。</p>
 
     <details className="short-support"><summary>读前看一眼 · {reading.words.length} 个关键词</summary>
       <p className="muted">先认得意思就好，不用现在背下来。</p>
@@ -89,10 +94,10 @@ export default function ShortReading({ reading, readings, progress, phrases, onS
       })}
     </details>
 
-    <div className="short-finish"><p>读懂这一小段，今天就够了。</p><button className="primary" disabled={storageError} onClick={() => onChange({ ...progress, lastRead:new Date().toISOString() })}>{progress.lastRead ? '再读一次，记下来' : '今天读到这里'}</button>{progress.lastRead && <p role="status">{storageError ? '这次更改尚未保存，请先导出备份。' : '阅读记录已保存在这台设备。收藏或完成阅读都不代表已经掌握。'}</p>}</div>
+    <div className="short-finish"><p>读懂这一小段，今天就够了。</p><button className="primary" disabled={storageError} onClick={() => onChange({ ...progress, lastRead:new Date().toISOString() })}>{progress.lastRead ? '再读一次，记下来' : reading.unit ? '记录本课阅读' : '今天读到这里'}</button>{progress.lastRead && <p role="status">{storageError ? '这次更改尚未保存，请先导出备份。' : '阅读记录已保存在这台设备。收藏或完成阅读都不代表已经掌握。'}</p>}</div>
     <div className="reading-next">{next ? <><p>下一篇 · {next.title}</p><button className="secondary" onClick={() => onSelect(next.id)}>继续读下一篇 →</button></> : <><p>已到最后一篇。可以从上方目录重读，也可以今天就停在这里。</p><button className="secondary" disabled={!previous} onClick={() => previous && onSelect(previous.id)}>回到上一篇</button></>}</div>
     <details className="short-support"><summary>还有余力？试着模仿一句（可选）</summary><p>{reading.imitation.prompt}</p><blockquote>{reading.imitation.scaffold}</blockquote><label>我的一句话<textarea rows={2} maxLength={2000} value={progress.imitation} onChange={e => onChange({ ...progress, imitation:e.target.value })}/></label><details><summary>看一个示例</summary><p>{reading.imitation.example}</p></details></details>
 
-    <details className="short-materials"><summary>换一段 / 导入我的教材样板</summary><p className="muted">导入一次，原文和阅读记录就留在这台设备；换手机需要重新导入资料包。</p><label>我的短阅读<select value={reading.id} onChange={e => onSelect(e.target.value)}>{readings.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label><label className="short-file">选择短阅读资料包（JSON）<input ref={file} type="file" accept=".json,application/json" disabled={busy || storageError} onChange={e => void importFile(e.target.files?.[0])}/></label><p className="fine-print">重复导入同一篇只更新内容，保留你的笔记和阅读记录。</p><p role="status">{busy ? '正在读取…' : message}</p></details>
+    <details className="short-materials"><summary>换一段 / 导入我的学习包</summary><p className="muted">导入一次，原文和阅读记录就留在这台设备；换手机需要重新导入资料包。</p><label>我的短阅读<select value={reading.id} onChange={e => onSelect(e.target.value)}>{readings.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label><label className="short-file">选择短阅读资料包（JSON）<input ref={file} type="file" accept=".json,application/json" disabled={busy || storageError} onChange={e => void importFile(e.target.files?.[0])}/></label><p className="fine-print">重复导入同一篇只更新内容，保留你的笔记和阅读记录。</p><p role="status">{busy ? '正在读取…' : message}</p></details>
   </section>;
 }

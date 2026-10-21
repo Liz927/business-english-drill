@@ -12,7 +12,7 @@ const key = 'business-english-drill:v1';
   page.on('pageerror', e => errors.push(e.message));
   const state = () => page.evaluate(k => JSON.parse(localStorage.getItem(k)),key);
   const expand = text => page.getByText(text,{exact:true}).click();
-  const materials = async () => { if(!await page.locator('.short-materials').getAttribute('open').then(v=>v!==null)) await expand('换一段 / 导入我的教材样板'); };
+  const materials = async () => { if(!await page.locator('.short-materials').getAttribute('open').then(v=>v!==null)) await expand('换一段 / 导入我的学习包'); };
   const noOverflow = async () => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   try {
     await page.goto(base); await page.waitForLoadState('networkidle');

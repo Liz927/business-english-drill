@@ -24,6 +24,7 @@ export interface ExposurePack {
 export interface PersonalReading { id: string; title: string; topic: string; source: string; text: string; note: string; savedAt: string; lastRead?: string }
 export interface ShortReading {
   id: string; title: string; topic: string; source: string; sourceKind: 'original' | 'personal';
+  unit?: { id: string; title: string; lesson: number; total: number };
   situation: string; paragraphs: string[]; hint: string;
   words: { term: string; meaning: string; example: string; focus: 'keep' | 'recognise' }[];
   imitation: { prompt: string; scaffold: string; example: string };

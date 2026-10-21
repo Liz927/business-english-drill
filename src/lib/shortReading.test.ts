@@ -1,11 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentAnswer, parseShortReadings, questionFor, validShortReading } from './shortReading.ts';
+import { currentAnswer, importReadings, parseShortReadings, questionFor, readingUnits, resumeReading, validShortReading } from './shortReading.ts';
 import { starterReading, shortReadings } from '../data/shortReadings.ts';
 import { emptyData, validData } from './storage.ts';
 
 const personal = { ...starterReading, id:'personal-test', sourceKind:'personal' as const };
 const bundle = (reading: unknown = personal) => JSON.stringify({ format:'bec-short-readings-v1', readings:[reading] });
+const lessons = [1,2,3].map(lesson => ({ ...personal, id:`personal-lesson-${lesson}`, unit:{id:'test-week',title:'Test week',lesson,total:3} }));
+test('unit imports require a complete, consistent and uniquely numbered sequence', () => {
+  const pack = (readings: unknown[]) => JSON.stringify({format:'bec-short-readings-v1',readings});
+  assert.equal(parseShortReadings(pack(lessons)).length,3);
+  assert.deepEqual(readingUnits([lessons[2],personal,lessons[0],lessons[1]]),[lessons]);
+  assert.throws(() => parseShortReadings(pack(lessons.slice(1))));
+  assert.throws(() => parseShortReadings(pack([lessons[0],lessons[1],{...lessons[2],unit:lessons[1].unit}])));
+  assert.throws(() => parseShortReadings(pack([lessons[0],lessons[1],{...lessons[2],unit:{...lessons[2].unit,title:'Another title'}}])));
+  for (const lesson of [0,4,1.5]) assert.equal(validShortReading({...lessons[0],unit:{...lessons[0].unit,lesson}}),false);
+});
+test('resume keeps the unfinished active lesson, otherwise returns the earliest unfinished lesson', () => {
+  const completed={note:'keep',imitation:'keep',lastRead:'2026-10-21'};
+  const progress={[lessons[0].id]:completed};
+  assert.equal(resumeReading(lessons,progress,lessons[2].id)?.id,lessons[2].id);
+  assert.equal(resumeReading(lessons,progress,lessons[0].id)?.id,lessons[1].id);
+  assert.equal(resumeReading(lessons,progress,'another-unit')?.id,lessons[1].id);
+  assert.equal(resumeReading(lessons,Object.fromEntries(lessons.map(r => [r.id,completed]))),undefined);
+});
+test('reimport updates lessons while retaining active position, previous notes and unrelated content', () => {
+  const before={...emptyData(),activeShortReading:lessons[1].id,shortReadings:[personal,...lessons],shortReadingProgress:{[lessons[1].id]:{note:'my question',imitation:'my draft'}}};
+  const updated=importReadings(before,lessons.map(r => ({...r,title:r.title+' updated'})));
+  assert.equal(updated.activeShortReading,lessons[1].id);
+  assert.deepEqual(updated.shortReadingProgress,before.shortReadingProgress);
+  assert.deepEqual(updated.phrases,before.phrases);
+  assert.equal(updated.shortReadings?.length,4);
+  assert.ok(validData(JSON.parse(JSON.stringify(updated))));
+});
 test('private import validates structure, sizes and namespace before replacing any content', () => {
   assert.deepEqual(parseShortReadings('\uFEFF' + bundle()),[personal]);
   assert.throws(() => parseShortReadings(bundle({ ...personal, paragraphs:[] })));
